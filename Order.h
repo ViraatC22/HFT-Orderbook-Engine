@@ -10,9 +10,11 @@
 #include "Constants.h"
 
 
-class Order
+class alignas(64) Order
 {
 public:
+    Order() = default;
+
     Order(OrderType orderType, OrderId orderId, Side side, Price price, Quantity quantity)
         : orderType_{ orderType }
         , orderId_{ orderId }
@@ -44,10 +46,20 @@ public:
     void ToGoodTillCancel(Price price) 
     { 
         if (GetOrderType() != OrderType::Market)
-            throw std::logic_error(std::format("Order ({}) cannot have its price adjusted, only market orders can.", GetOrderId()));
+            throw std::logic_error(std::format("Order ({}) cannot be filled for more than its remaining quantity.", GetOrderId()));
 
         price_ = price;
         orderType_ = OrderType::GoodTillCancel;
+    }
+
+    void Reset(OrderType orderType, OrderId orderId, Side side, Price price, Quantity quantity)
+    {
+        orderType_ = orderType;
+        orderId_ = orderId;
+        side_ = side;
+        price_ = price;
+        initialQuantity_ = quantity;
+        remainingQuantity_ = quantity;
     }
 
 private:
@@ -58,6 +70,17 @@ private:
     Quantity initialQuantity_;
     Quantity remainingQuantity_;
 };
+
+#include <memory_resource>
+
+// Forward declare for OrderPointer
+class Order;
+
+// Custom deleter or just use raw pointers for PMR if we want to be pure?
+// For compatibility with existing code, we will stick to shared_ptr but allocated via PMR?
+// Actually, std::pmr::polymorphic_allocator is for containers. 
+// For individual objects, we can just use raw pointers or unique_ptr with custom deleter.
+// But to keep it simple for now, let's just make Order compatible with PMR vectors if needed.
 
 using OrderPointer = std::shared_ptr<Order>;
 using OrderPointers = std::list<OrderPointer>;
