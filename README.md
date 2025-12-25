@@ -48,15 +48,31 @@ A high-performance, lock-free order matching engine designed for ultra-low laten
 
 #### 3. Order Matching Engine (`Orderbook.cpp`)
 - Price-time priority matching algorithm
-- Red-black tree price levels with FIFO order chains
+- Price level storage with FIFO order chains
 - Support for multiple order types (GTC, IOC, FOK, Market)
 - Real-time risk management integration
 
-#### 4. Event Sourcing & Audit Trail (`Journaler.h`)
+#### 4. O(1) Price Lookup (Optional)
+- Flat bitmap lookup for active price levels (`FlatPriceMap.h`)
+- Price-indexed book for constant-time price access (`PriceIndexedOrderbook.h`)
+- Production wrapper integrating additional components (`ProductionOrderbook.h`)
+
+#### 5. Event Sourcing & Audit Trail
 - Deterministic event replay capability
-- Asynchronous I/O with io_uring for zero-jitter logging
+- Journal interface for audit logging (`Journaler.h`)
+- Linux io_uring journaler implementation (`IoUringJournaler.h`)
 - Perfect audit trail for regulatory compliance
 - Crash recovery through event log replay
+
+#### 6. Observability (Shared Memory Metrics)
+- Shared-memory metrics with atomic counters (`SharedMemoryMetrics.h`)
+- Optional publisher integration (`MetricsPublisher.h`)
+
+#### 7. OS Tuning Validation
+- Pre-flight validation for CPU isolation, governors, NUMA, and RT scheduling (`SystemValidator.h`)
+
+#### 8. Kernel Bypass Ingress (Optional / Linux)
+- AF_PACKET ring-based capture and stub backends (`KernelBypassIngress.h`)
 
 #### 5. Risk Management (`RiskManager.h`)
 - Pre-trade risk checks with sub-microsecond latency
@@ -84,11 +100,6 @@ A high-performance, lock-free order matching engine designed for ultra-low laten
 ```bash
 # Using direct compilation
 clang++ -std=c++20 -O3 main.cpp Orderbook.cpp -o orderbook
-
-# Using CMake (if CMakeLists.txt is present)
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
 ```
 
 ### Execution
@@ -154,14 +165,20 @@ Orderbook/
 ├── Performance Components
 │   ├── SimdPriceMatcher.h      # SIMD price matching
 │   ├── FlatPriceMap.h          # O(1) price lookup
+│   ├── PriceIndexedOrderbook.h  # O(1) price-indexed orderbook
 │   └── MetricsPublisher.h      # Real-time metrics
 │
 ├── Risk & Compliance
 │   ├── RiskManager.h           # Pre-trade risk checks
 │   ├── Journaler.h             # Event sourcing
+│   ├── IoUringJournaler.h       # Linux io_uring journaling backend
 │   └── RateLimiter.h           # Throughput limiting
 │
 ├── Infrastructure
+│   ├── ProductionOrderbook.h    # Production wrapper engine
+│   ├── SharedMemoryMetrics.h    # Shared memory metrics
+│   ├── SystemValidator.h        # OS/hardware tuning validator
+│   ├── KernelBypassIngress.h    # Optional kernel bypass ingress
 │   ├── main.cpp                # Application entry point
 │   ├── ARCHITECTURE.md         # Detailed architecture docs
 │   └── README.md               # This file
@@ -232,11 +249,7 @@ static constexpr Price MaxPriceDeviation = 0.1;  // 10% from market
 ## 🧪 Testing and Validation
 
 ### Unit Tests
-```bash
-cd OrderbookTest
-clang++ -std=c++20 -O3 test.cpp -o test
-./test
-```
+- `OrderbookTest/` is a Visual Studio test project (`OrderbookTest.vcxproj`) that runs the scenarios in `OrderbookTest/TestFiles/`.
 
 ### Performance Regression Testing
 ```bash
