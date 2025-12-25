@@ -86,9 +86,10 @@ void Orderbook::ProcessRequests()
             {
                 auto now = std::chrono::high_resolution_clock::now();
                 auto end = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
-                if (end > req.timestamp)
+                if (end > 0)
                 {
-                    latencies_.push_back(end - req.timestamp);
+                    const auto end_u = static_cast<uint64_t>(end);
+                    if (end_u > req.timestamp) latencies_.push_back(end_u - req.timestamp);
                 }
             }
         }
@@ -217,9 +218,9 @@ bool Orderbook::CanFullyFill(Side side, Price price, Quantity quantity) const
 
     for (const auto& [levelPrice, levelData] : data_)
     {
-        if (threshold.has_value() &&
+        if (threshold.has_value() && (
             (side == Side::Buy && threshold.value() > levelPrice) ||
-            (side == Side::Sell && threshold.value() < levelPrice))
+            (side == Side::Sell && threshold.value() < levelPrice)))
             continue;
 
         if ((side == Side::Buy && levelPrice > price) ||
@@ -237,6 +238,7 @@ bool Orderbook::CanFullyFill(Side side, Price price, Quantity quantity) const
 
 bool Orderbook::CanMatch(Side side, Price price) const
 {
+    (void)price;
     if (side == Side::Buy)
     {
         // Use O(1) Matcher!

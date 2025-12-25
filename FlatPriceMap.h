@@ -13,8 +13,8 @@ class FlatPriceMap
 {
 public:
     FlatPriceMap(size_t maxPrice = 1000000) 
-        : maxPrice_(std::numeric_limits<Price>::min())
-        , minPrice_(std::numeric_limits<Price>::max())
+        : minPrice_(std::numeric_limits<Price>::max())
+        , maxPrice_(std::numeric_limits<Price>::min())
     {
         // Vector<bool> is specialized and not thread safe, but we are single threaded.
         // 1M entries.
@@ -31,14 +31,20 @@ public:
         if (price > maxPrice_) maxPrice_ = price; // Fast update for Bids
         if (price < minPrice_) minPrice_ = price; // Fast update for Asks
         
-        if (price < exists_.size())
-            exists_[price] = true;
+        if (price >= 0)
+        {
+            const auto idx = static_cast<size_t>(price);
+            if (idx < exists_.size()) exists_[idx] = true;
+        }
     }
 
     void RemovePrice(Price price)
     {
-        if (price < exists_.size())
-            exists_[price] = false;
+        if (price >= 0)
+        {
+            const auto idx = static_cast<size_t>(price);
+            if (idx < exists_.size()) exists_[idx] = false;
+        }
             
         // Lazy update of min/max? 
         // If we removed the max, we need to scan down to find new max.
@@ -47,7 +53,10 @@ public:
         if (price == maxPrice_)
         {
             // Scan down
-            while (maxPrice_ > 0 && !exists_[maxPrice_]) {
+            while (maxPrice_ > 0)
+            {
+                const auto idx = static_cast<size_t>(maxPrice_);
+                if (idx < exists_.size() && exists_[idx]) break;
                 maxPrice_--;
             }
         }
@@ -55,7 +64,11 @@ public:
         if (price == minPrice_)
         {
             // Scan up
-            while (minPrice_ < exists_.size() && !exists_[minPrice_]) {
+            while (minPrice_ >= 0)
+            {
+                const auto idx = static_cast<size_t>(minPrice_);
+                if (idx >= exists_.size()) break;
+                if (exists_[idx]) break;
                 minPrice_++;
             }
         }
